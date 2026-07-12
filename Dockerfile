@@ -4,10 +4,9 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-COPY package.json pnpm-lock.yaml tsconfig.json tsup.config.ts* ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsup.config.ts* ./
 
-# Pasamos el argumento directo mediante el flag --config de pnpm
-RUN pnpm install --frozen-lockfile --config.only-built-dependencies=esbuild
+RUN pnpm install --frozen-lockfile
 
 COPY src/ ./src
 RUN pnpm build
@@ -20,9 +19,9 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Instalamos solo dependencias de producción (no usa esbuild, no requiere flags adicionales)
+# Instalamos solo dependencias de producción
 RUN pnpm install --prod --frozen-lockfile
 
 # Copiar el empaquetado JS plano generado en la etapa nativa
