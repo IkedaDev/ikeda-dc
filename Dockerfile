@@ -3,13 +3,10 @@ FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Instalar pnpm nativo en la máquina de GitHub (sin emular)
-RUN npm install -g pnpm
-
 COPY package.json pnpm-lock.yaml tsconfig.json tsup.config.ts* ./
 
-# Aquí se compilará esbuild de forma nativa e instantánea
-RUN PNPM_ONLY_BUILT_DEPENDENCIES=esbuild pnpm install --frozen-lockfile
+# Usamos la variable de configuración exacta que acepta pnpm v11 de manera nativa
+RUN pnpm_config_only_built_dependencies=esbuild pnpm install --frozen-lockfile
 
 COPY src/ ./src
 RUN pnpm build
