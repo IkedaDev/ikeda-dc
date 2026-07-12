@@ -8,8 +8,8 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml tsconfig.json tsup.config.ts* ./
 
-# Autoriza explícitamente a los binarios de esbuild que tsup y tsx necesitan
-RUN pnpm install --frozen-lockfile --only-built-dependencies=esbuild
+# Al estar declarado en el package.json, pnpm lo aplicará automáticamente aquí
+RUN pnpm install --frozen-lockfile
 
 COPY src/ ./src
 
