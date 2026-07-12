@@ -27,7 +27,7 @@ export class GetWelcomeMessageUseCase {
       title: '🪓 ¡Noxus necesita vuestra fuerza!',
       template: '{user} se une a las filas del imperio buscando gloria en la arena de batalla.',
       color: '#C0392B',
-      image: "https://www.esportmaniacos.com/wp-content/uploads/2025/03/Noxus-Demancia.webp",
+      image: "https://cdna.artstation.com/p/assets/images/images/075/606/724/large/prophetein-3333-0000.jpg?1715005723",
     },
     {
       title: '🌸 El equilibrio de Jonia',
