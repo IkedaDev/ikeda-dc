@@ -8,7 +8,8 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml tsconfig.json tsup.config.ts* ./
 
-RUN pnpm config set allow-scripts true && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts=false
+
 
 COPY src/ ./src
 
