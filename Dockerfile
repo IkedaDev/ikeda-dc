@@ -8,8 +8,8 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml tsconfig.json tsup.config.ts* ./
 
-# Al estar declarado en el package.json, pnpm lo aplicará automáticamente aquí
-RUN pnpm install --frozen-lockfile
+# Inyectamos la variable de entorno directamente para obligar a pnpm v11 a compilar esbuild
+RUN PNPM_ONLY_BUILT_DEPENDENCIES=esbuild pnpm install --frozen-lockfile
 
 COPY src/ ./src
 
