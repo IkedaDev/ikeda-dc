@@ -1,30 +1,36 @@
-# --- Stage 1: Base & Build ---
-FROM node:22-alpine AS builder
 
-# Instalar pnpm de forma global e independiente
-RUN npm install -g pnpm
+FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Instalar pnpm nativo en la máquina de GitHub (sin emular)
+RUN npm install -g pnpm
+
 COPY package.json pnpm-lock.yaml tsconfig.json tsup.config.ts* ./
 
-# Inyectamos la variable de entorno directamente para obligar a pnpm v11 a compilar esbuild
+# Aquí se compilará esbuild de forma nativa e instantánea
 RUN PNPM_ONLY_BUILT_DEPENDENCIES=esbuild pnpm install --frozen-lockfile
 
 COPY src/ ./src
-
 RUN pnpm build
 
-RUN pnpm prune --prod
 
+# --- Etapa 2: Imagen de producción final (ARM64 para tu clúster) ---
+# Al quitar el build de aquí, el runner no necesita levantar tsup ni esbuild, evitando el error de QEMU
 FROM node:22-alpine AS runner
 
 WORKDIR /app
 
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
+RUN npm install -g pnpm
+
+COPY package.json pnpm-lock.yaml ./
+
+# Instalamos únicamente dependencias limpias de producción (no compila binarios complejos)
+RUN pnpm install --prod --frozen-lockfile
+
+# Copiamos los archivos generados del build nativo
 COPY --from=builder /app/dist ./dist
 
 ENV NODE_ENV=production
 
-CMD ["npm", "run", "start"]
+CMD ["node", "dist/index.js"]
