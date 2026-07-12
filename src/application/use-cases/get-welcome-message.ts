@@ -94,7 +94,7 @@ export class GetWelcomeMessageUseCase {
       title: '🌿 Los Axiomas de Ixtal',
       template: 'La tierra y los elementos se alinean. ¡Demos la bienvenida al maestro elemental {user}!',
       color: '#27AE60',
-      image: "i.postimg.cc/6QDM8TGQ/Ixtal.png",
+      image: "https://i.postimg.cc/6QDM8TGQ/Ixtal.png",
     },
    
     {
