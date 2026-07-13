@@ -1,0 +1,147 @@
+# ♊ Instrucciones del Proyecto: Clean Architecture & Flujos (ikeda-dc)
+
+Este archivo sirve como guía contextual para agentes de IA (como Gemini) y desarrolladores para entender la estructura de Clean Architecture, los flujos de ejecución y las reglas de diseño del bot de Discord.
+
+---
+
+## 🏛️ Arquitectura del Proyecto
+
+El proyecto está estructurado en tres capas desacopladas para garantizar escalabilidad, facilidad de mantenimiento y testing:
+
+```
+src/
+├── domain/                  # Capa 1: Reglas de negocio puras y puertos (interfaces)
+│   ├── entities/            # Entidades del dominio (ej. WelcomeMessage)
+│   └── ports/               # Contratos/Interfaces (ej. IRoleService, ILogger)
+│
+├── application/             # Capa 2: Casos de Uso (Orquestadores de la lógica)
+│   └── use-cases/           # Clases con la lógica de negocio (ej. HandleNewMemberUseCase)
+│
+├── infrastructure/          # Capa 3: Detalles técnicos y frameworks (discord.js, config)
+│   ├── config/              # Lectura de configuraciones y .env
+│   ├── logger/              # Logger personalizado de consola
+│   └── discord/             # Controladores y adaptadores de Discord
+│       ├── commands/        # Comandos de barra (/)
+│       ├── events/          # Escuchadores de eventos de discord.js
+│       ├── interfaces/      # Interfaces de integración (Command, Event)
+│       └── services/        # Implementaciones de puertos de dominio (ej. DiscordRoleService)
+│
+├── container.ts             # Contenedor de Inyección de Dependencias (Awilix)
+└── index.ts                 # Punto de entrada de la aplicación
+```
+
+---
+
+## ⚙️ Reglas Cruciales de Diseño
+
+1. **Aislamiento de Capas**: 
+   - `domain` y `application` **nunca** deben importar dependencias o tipos de `discord.js`. Toda interacción con la API de Discord debe abstraerse en `domain/ports` usando primitivos (`string` para IDs, etc.) e implementarse en `infrastructure/discord/services`.
+2. **Inyección de Dependencias (Awilix)**:
+   - Configurado en `InjectionMode.CLASSIC` en [container.ts](file:///a:/IkedaDev/ikeda-dc/src/container.ts). Las dependencias se resuelven automáticamente según el **nombre exacto del parámetro** en el constructor o función fábrica.
+   - Si creas una función fábrica en `container.ts` (ej. usando `asFunction`), nombra los parámetros exactamente igual que las dependencias registradas (ej. `(toggleMemberRolePreference) => ...`). **No** uses nombres genéricos como `cradle` ya que causarán un `AwilixResolutionError`.
+3. **Logs**:
+   - No usar `console.log` o `console.error` directamente en el dominio o casos de uso. Inyecta siempre el puerto [ILogger](file:///a:/IkedaDev/ikeda-dc/src/domain/ports/logger.interface.ts).
+
+---
+
+## 🔄 Flujos de Ejecución Principales
+
+### 1. Inicialización y Arranque (Bootstrapping)
+```mermaid
+sequenceDiagram
+    participant Index as index.ts
+    participant Container as container.ts
+    participant Client as Discord Client
+    participant REST as deploy.ts
+    
+    Index->>Client: Instancia client con GatewayIntents
+    Index->>Container: Registra instancia como 'discordClient' (asValue)
+    Index->>Container: Invoca getRegisteredEvents()
+    Container->>Index: Retorna array de Event[]
+    loop Por cada Evento
+        Index->>Client: Registra callbacks (client.on / client.once)
+    end
+    Index->>Client: login(DISCORD_TOKEN)
+```
+
+### 2. Flujo de Nuevo Miembro (Welcome & Default Roles)
+Este flujo se activa cuando un usuario ingresa al servidor de Discord.
+```mermaid
+sequenceDiagram
+    participant Discord as Discord API
+    participant Event as GuildMemberAddEvent
+    participant UC as HandleNewMemberUseCase
+    participant Config as StaticConfigRepository
+    participant Notifier as DiscordWelcomeNotifier
+    participant RoleService as DiscordRoleService
+
+    Discord->>Event: Emite GuildMemberAdd (member)
+    Event->>UC: execute(guildId, memberId, username, memberTag)
+    
+    rect rgb(240, 248, 255)
+        Note over UC: Fase 1: Bienvenida
+        UC->>Config: getWelcomeChannelId()
+        UC->>UC: Genera WelcomeMessage
+        UC->>Notifier: sendWelcome(guildId, channelId, memberId, welcomeMessage)
+        Notifier->>Discord: Envía Embed con plantilla de Runaterra
+    end
+
+    rect rgb(255, 240, 245)
+        Note over UC: Fase 2: Asignación de Roles
+        UC->>Config: getDefaultRoleIds()
+        loop Por cada rol por defecto
+            UC->>RoleService: assignRole(guildId, memberId, roleId)
+            RoleService->>Discord: member.roles.add(roleId)
+        end
+    end
+```
+
+### 3. Flujo de Botón de Auto-Gestión de Roles (Partidas)
+Ocurre cuando un usuario presiona un botón en el panel de roles desplegado por `/setup-roles`.
+```mermaid
+sequenceDiagram
+    participant User as Discord User
+    participant Event as InteractionCreateEvent
+    participant UC as ToggleMemberRolePreferenceUseCase
+    participant Config as StaticConfigRepository
+    participant RoleService as DiscordRoleService
+
+    User->>Event: Presiona Botón (customId: role_pref:partidas:rankeds)
+    Event->>Event: deferReply(ephemeral)
+    Event->>UC: execute(guildId, memberId, "partidas", "rankeds")
+    UC->>Config: getPartidasRoleMapping()
+    Note over UC: Encuentra el Role ID correspondiente
+    UC->>RoleService: hasRole(guildId, memberId, roleId)
+    
+    alt Usuario ya tiene el rol
+        UC->>RoleService: removeRole(guildId, memberId, roleId)
+        UC->>Event: Retorna { action: 'removed', roleName }
+        Event->>User: Responde "Se ha retirado tu rol correctamente"
+    alt Usuario NO tiene el rol
+        UC->>RoleService: assignRole(guildId, memberId, roleId)
+        UC->>Event: Retorna { action: 'added', roleName }
+        Event->>User: Responde "¡Asignado con éxito! Ahora tienes acceso"
+    end
+```
+
+---
+
+## 🚀 Cómo Escalar el Proyecto
+
+### A. Añadir un Nuevo Comando
+1. Crea tu archivo de comando en `src/infrastructure/discord/commands/nuevo.command.ts`.
+2. Implementa la interfaz [Command](file:///a:/IkedaDev/ikeda-dc/src/infrastructure/discord/interfaces/command.ts).
+3. Regístralo en [container.ts](file:///a:/IkedaDev/ikeda-dc/src/container.ts):
+   ```typescript
+   nuevoCommand: asClass(NuevoCommand).singleton()
+   ```
+4. Agrégalo al array de `commandKeys` en la función `getRegisteredCommands` de `container.ts` para que se exponga al controlador del bot y al script de despliegue de Slash Commands.
+
+### B. Cambiar el Almacenamiento de Configuración (ej. a Base de Datos)
+1. Crea una nueva clase en `src/infrastructure/database/db-config.repository.ts`.
+2. Implementa la interfaz [IConfigRepository](file:///a:/IkedaDev/ikeda-dc/src/domain/ports/config-repository.interface.ts).
+3. Modifica [container.ts](file:///a:/IkedaDev/ikeda-dc/src/container.ts) para apuntar a la nueva clase en lugar de `StaticConfigRepository`:
+   ```typescript
+   configRepository: asClass(DbConfigRepository).singleton()
+   ```
+4. **¡Listo!** El bot leerá la configuración de la base de datos sin necesidad de tocar ningún caso de uso ni archivo de eventos/comandos de Discord.

@@ -8,13 +8,13 @@ import {
   PermissionFlagsBits 
 } from 'discord.js';
 import { Command } from '../interfaces/command';
+import { IConfigRepository } from '../../../domain/ports/config-repository.interface';
 
 export class SetupRolesCommand implements Command {
   public data = new SlashCommandBuilder()
     .setName('setup-roles')
     .setDescription('Despliega un panel de autogestión de roles.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    // Agregamos un parámetro para elegir qué sección inicializar en el canal
     .addStringOption(option =>
       option.setName('seccion')
         .setDescription('La sección de configuración que deseas desplegar')
@@ -24,10 +24,23 @@ export class SetupRolesCommand implements Command {
         )
     ) as SlashCommandBuilder;
 
+  constructor(private configRepository: IConfigRepository) {}
+
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const seccion = interaction.options.get('seccion')?.value as string;
+    const seccion = interaction.options.getString('seccion', true);
 
     if (seccion === 'partidas') {
+      const mapping = this.configRepository.getPartidasRoleMapping();
+      
+      // Validamos que existan roles configurados en la infraestructura
+      if (!mapping || Object.keys(mapping).length === 0) {
+        await interaction.reply({ 
+          content: '❌ Error: No hay roles configurados para la sección de partidas en el repositorio de configuración.', 
+          ephemeral: true 
+        });
+        return;
+      }
+
       const embed = new EmbedBuilder()
         .setColor('#1F618D')
         .setTitle('🎮 Preferencias de Partida')
@@ -37,9 +50,8 @@ export class SetupRolesCommand implements Command {
           '🍻 **Normales / Chill:** Partidas casuales en la Grieta del Invocador.\n' +
           '🧊 **ARAMs:** Diversión rápida y caótica en el Abismo de los Lamentos.\n' +
           '🔥 **Torneos / Eventos:** Mantente al tanto de las inscripciones y ligas internas.'
-        )
+        );
 
-      // Agregamos el prefijo 'role_pref:partidas:' para identificar la sección en el evento
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId('role_pref:partidas:rankeds')
@@ -64,9 +76,6 @@ export class SetupRolesCommand implements Command {
       );
 
       await interaction.reply({ embeds: [embed], components: [row] });
-      return;
     }
-
-
   }
 }

@@ -1,7 +1,8 @@
 import "dotenv/config";
 
 import { Client, Events, GatewayIntentBits } from "discord.js";
-import { getRegisteredEvents } from "./container";
+import { asValue } from "awilix";
+import { container, getRegisteredEvents } from "./container";
 
 if (!process.env.DISCORD_TOKEN) {
   console.error('❌ Error: DISCORD_TOKEN no definido.');
@@ -15,6 +16,12 @@ const client = new Client({
   ],
 });
 
+// Registrar la instancia de client en el contenedor de dependencias
+container.register({
+  discordClient: asValue(client)
+});
+
+// Registrar y escuchar los eventos
 for (const event of getRegisteredEvents()) {
   if (event.once) {
     client.once(event.name as any, (...args: any[]) => event.execute(...args));

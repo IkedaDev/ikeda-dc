@@ -1,40 +1,43 @@
-// src/infrastructure/discord/commands/TestWelcomeCommand.ts
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, MessageFlags, TextChannel, ColorResolvable } from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { Command } from '../interfaces/command';
 import { GetWelcomeMessageUseCase } from '../../../application/use-cases/get-welcome-message';
+import { IWelcomeNotifier } from '../../../domain/ports/welcome-notifier.interface';
 
 export class TestWelcomeCommand implements Command {
   public data = new SlashCommandBuilder()
     .setName('test-welcome')
     .setDescription('Simula y prueba el mensaje de bienvenida en este canal.');
 
-  // Inyectamos el mismo caso de uso de bienvenida
-  constructor(private getWelcomeMessage: GetWelcomeMessageUseCase) {}
+  constructor(
+    private getWelcomeMessage: GetWelcomeMessageUseCase,
+    private welcomeNotifier: IWelcomeNotifier
+  ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    // 1. Ocultamos la respuesta inicial del comando para no ensuciar el canal
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-    // 2. Ejecutamos la lógica de negocio simulando que TÚ eres el usuario nuevo
-    const welcomeText = await this.getWelcomeMessage.execute(interaction.user.toString());
+    if (!interaction.guildId) {
+      await interaction.editReply({ content: '❌ Este comando solo puede ser ejecutado dentro de un servidor.' });
+      return;
+    }
 
-    // 3. Reutilizamos la misma estructura visual del Embed de bienvenida
-    const welcomeEmbed = new EmbedBuilder()
-      .setColor(welcomeText.color as ColorResolvable)
-      .setTitle(`[TEST] ${welcomeText.title}`)
-      .setDescription(welcomeText.description)
-      .setThumbnail(interaction.user.displayAvatarURL({ size: 256 }))
-      .setImage(welcomeText.image)
-    //   .setTimestamp()
-    //   .setFooter({ text: `Miembro de prueba` });
+    try {
+      // 1. Generar el mensaje de bienvenida simulado usando el usuario actual
+      const welcomeMessage = await this.getWelcomeMessage.execute(interaction.user.toString());
 
-    const targetChannel = interaction.channel as TextChannel;
+      // 2. Enviar el mensaje usando el notificador en el canal actual
+      await this.welcomeNotifier.sendWelcome(
+        interaction.guildId,
+        interaction.channelId,
+        interaction.user.id,
+        welcomeMessage
+      );
 
-    if (targetChannel) {
-      await targetChannel.send({ embeds: [welcomeEmbed] });
       await interaction.editReply({ content: '✅ Mensaje de prueba enviado al canal.' });
-    } else {
-      await interaction.editReply({ content: '❌ No se pudo acceder al canal actual.' });
+    } catch (error) {
+      await interaction.editReply({ 
+        content: `❌ Error al simular bienvenida: ${error instanceof Error ? error.message : String(error)}` 
+      });
     }
   }
 }
