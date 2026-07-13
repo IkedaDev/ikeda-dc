@@ -34,4 +34,8 @@ client.once(Events.ClientReady, (readyClient) => {
   console.log(`🚀 Bot listo y escuchando como: ${readyClient.user.tag}`);
 });
 
+// Arrancar el servidor Express para recibir Webhooks
+const expressServer = container.resolve('expressServer');
+expressServer.start();
+
 client.login(process.env.DISCORD_TOKEN);

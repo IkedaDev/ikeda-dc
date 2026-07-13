@@ -5,6 +5,13 @@ export interface WelcomeTemplateDto {
   image: string;
 }
 
+export interface WebhookAppConfig {
+  appId: string;
+  channelId?: string;
+  webhookUrl?: string;
+  secret?: string;
+}
+
 export interface IConfigRepository {
   getWelcomeChannelId(): string;
   getDefaultRoleIds(): string[];
@@ -14,4 +21,5 @@ export interface IConfigRepository {
   getClientId(): string;
   getGuildId(): string;
   getDeveloperUserIds(): string[];
+  getWebhookConfig(appId: string): WebhookAppConfig | undefined;
 }

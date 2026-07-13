@@ -1,4 +1,4 @@
-import { WelcomeTemplateDto } from '../../domain/ports/config-repository.interface';
+import { WelcomeTemplateDto, WebhookAppConfig } from '../../domain/ports/config-repository.interface';
 
 export interface BotConfig {
   discordToken: string;
@@ -9,6 +9,7 @@ export interface BotConfig {
   partidasRoleMapping: Record<string, string>;
   welcomeTemplates: WelcomeTemplateDto[];
   developerUserIds: string[];
+  webhooks: WebhookAppConfig[];
 }
 
 export const botConfig: BotConfig = {
@@ -23,6 +24,13 @@ export const botConfig: BotConfig = {
     'arams': '1524972549782638683',
     'torneos': '1524841327144079441',
   },
+  webhooks: [
+    {
+      appId: 'default',
+      channelId: process.env.WEBHOOK_DEFAULT_CHANNEL_ID || '1525595909994315957',
+      webhookUrl: process.env.WEBHOOK_DEFAULT_DISCORD_URL,
+    },
+  ],
   developerUserIds: [
     '410457473892483072', 
   ],

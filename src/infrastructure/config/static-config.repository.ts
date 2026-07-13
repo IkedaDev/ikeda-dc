@@ -1,4 +1,4 @@
-import { IConfigRepository, WelcomeTemplateDto } from '../../domain/ports/config-repository.interface';
+import { IConfigRepository, WelcomeTemplateDto, WebhookAppConfig } from '../../domain/ports/config-repository.interface';
 import { botConfig } from './bot-config';
 
 export class StaticConfigRepository implements IConfigRepository {
@@ -32,5 +32,9 @@ export class StaticConfigRepository implements IConfigRepository {
 
   getDeveloperUserIds(): string[] {
     return botConfig.developerUserIds;
+  }
+
+  getWebhookConfig(appId: string): WebhookAppConfig | undefined {
+    return botConfig.webhooks.find(w => w.appId === appId);
   }
 }

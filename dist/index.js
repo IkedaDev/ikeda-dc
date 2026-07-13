@@ -1,6 +1,6 @@
 // src/index.ts
 import "dotenv/config";
-import { Client as Client2, Events as Events3, GatewayIntentBits } from "discord.js";
+import { Client as Client3, Events as Events3, GatewayIntentBits } from "discord.js";
 import { asValue } from "awilix";
 
 // src/container.ts
@@ -43,6 +43,26 @@ var botConfig = {
     "arams": "1524972549782638683",
     "torneos": "1524841327144079441"
   },
+  webhooks: [
+    {
+      appId: "default",
+      channelId: process.env.WEBHOOK_DEFAULT_CHANNEL_ID || "1279220559787458694",
+      webhookUrl: process.env.WEBHOOK_DEFAULT_DISCORD_URL
+    },
+    {
+      appId: "github",
+      channelId: process.env.WEBHOOK_GITHUB_CHANNEL_ID || "1279220559787458694",
+      webhookUrl: process.env.WEBHOOK_GITHUB_DISCORD_URL
+    },
+    {
+      appId: "stripe",
+      channelId: process.env.WEBHOOK_STRIPE_CHANNEL_ID || "1279220559787458694",
+      webhookUrl: process.env.WEBHOOK_STRIPE_DISCORD_URL
+    }
+  ],
+  developerUserIds: [
+    "410457473892483072"
+  ],
   welcomeTemplates: [
     // --- Regiones de Runaterra ---
     {
@@ -191,6 +211,12 @@ var StaticConfigRepository = class {
   getGuildId() {
     return botConfig.guildId;
   }
+  getDeveloperUserIds() {
+    return botConfig.developerUserIds;
+  }
+  getWebhookConfig(appId) {
+    return botConfig.webhooks.find((w) => w.appId === appId);
+  }
 };
 
 // src/infrastructure/discord/services/discord-role.service.ts
@@ -265,6 +291,259 @@ var DiscordWelcomeNotifier = class {
       welcomeEmbed.setImage(message.image);
     }
     await targetChannel.send({ embeds: [welcomeEmbed] });
+  }
+};
+
+// src/infrastructure/discord/services/discord-notifier.ts
+import { TextChannel as TextChannel2, WebhookClient } from "discord.js";
+var DiscordNotifier = class {
+  constructor(discordClient) {
+    this.discordClient = discordClient;
+  }
+  discordClient;
+  async sendToChannel(channelId, options) {
+    const channel = await this.discordClient.channels.fetch(channelId);
+    if (!channel || !(channel instanceof TextChannel2)) {
+      throw new Error(`Canal de Discord no encontrado o no es de texto: ${channelId}`);
+    }
+    await channel.send({
+      content: options.content,
+      embeds: options.embeds
+    });
+  }
+  async sendToWebhook(webhookUrl, options) {
+    const webhookClient = new WebhookClient({ url: webhookUrl });
+    await webhookClient.send({
+      content: options.content,
+      embeds: options.embeds,
+      username: options.username,
+      avatarURL: options.avatarUrl
+    });
+  }
+};
+
+// src/infrastructure/webhooks/handlers/default.webhook-handler.ts
+var DefaultWebhookHandler = class {
+  appId = "default";
+  async handle(payload, headers) {
+    const content = payload?.content || payload?.message || (payload ? `\`\`\`json
+${JSON.stringify(payload, null, 2)}
+\`\`\`` : "Webhook vac\xEDo");
+    const embeds = payload?.embeds || [];
+    return {
+      content: content.length > 2e3 ? `${content.substring(0, 1990)}...` : content,
+      embeds,
+      username: payload?.username || "Notificaciones Ikeda",
+      avatarUrl: payload?.avatarUrl || "https://i.imgur.com/veROHNQ.jpeg"
+    };
+  }
+};
+
+// src/infrastructure/webhooks/handlers/github.webhook-handler.ts
+var GithubWebhookHandler = class {
+  appId = "github";
+  async handle(payload, headers) {
+    const event = headers["x-github-event"] || "unknown";
+    if (event === "ping") {
+      return {
+        embeds: [
+          {
+            title: "\u{1F7E2} GitHub Webhook Vinculado",
+            description: `El webhook ha sido configurado con \xE9xito para el repositorio: **${payload?.repository?.full_name}**`,
+            color: 3066993,
+            // Green
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        ],
+        username: "GitHub",
+        avatarUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+      };
+    }
+    if (event === "push") {
+      const repoName = payload.repository?.name || "repo";
+      const repoUrl = payload.repository?.html_url || "";
+      const pusher = payload.pusher?.name || "unknown";
+      const ref = payload.ref || "";
+      const branch = ref.replace("refs/heads/", "");
+      const commits = payload.commits || [];
+      let commitListText = "";
+      if (commits.length > 0) {
+        commitListText = commits.slice(0, 5).map((c) => `[\`${c.id.substring(0, 7)}\`](${c.url}) - ${c.message.split("\n")[0]} (por *${c.author.name}*)`).join("\n");
+        if (commits.length > 5) {
+          commitListText += `
+*y ${commits.length - 5} commits m\xE1s...*`;
+        }
+      } else {
+        commitListText = "No hay commits en este push.";
+      }
+      return {
+        embeds: [
+          {
+            title: `\u{1F680} Push detectado en [${repoName}:${branch}]`,
+            url: `${repoUrl}/tree/${branch}`,
+            description: commitListText,
+            color: 616922,
+            // GitHub Blue
+            author: {
+              name: pusher,
+              icon_url: payload.sender?.avatar_url || ""
+            },
+            footer: {
+              text: `GitHub Webhooks \u2022 ${repoName}`
+            },
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        ],
+        username: "GitHub",
+        avatarUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+      };
+    }
+    if (event === "pull_request") {
+      const action = payload.action;
+      const pr = payload.pull_request;
+      const repoName = payload.repository?.name || "repo";
+      const user = pr?.user?.login || "unknown";
+      const title = pr?.title || "No Title";
+      const url = pr?.html_url || "";
+      let color = 2991182;
+      let actionWord = "abierto";
+      if (action === "closed") {
+        if (pr?.merged) {
+          color = 8540383;
+          actionWord = "fusionado \u{1F49C}";
+        } else {
+          color = 13574702;
+          actionWord = "cerrado \u{1F534}";
+        }
+      }
+      return {
+        embeds: [
+          {
+            title: `\u{1F50C} Pull Request ${actionWord} en ${repoName}`,
+            url,
+            description: `**#${pr?.number} - ${title}**
+
+Modificaciones: \`+${pr?.additions}\` \`-${pr?.deletions}\` en \`${pr?.changed_files}\` archivos.`,
+            color,
+            author: {
+              name: user,
+              icon_url: pr?.user?.avatar_url || ""
+            },
+            footer: {
+              text: `GitHub Webhooks \u2022 ${repoName}`
+            },
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        ],
+        username: "GitHub",
+        avatarUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+      };
+    }
+    return {
+      embeds: [
+        {
+          title: `\u{1F514} Evento GitHub: ${event}`,
+          description: `Se recibi\xF3 una notificaci\xF3n de GitHub del tipo \`${event}\`.`,
+          color: 2369839,
+          // GitHub Dark Gray
+          footer: {
+            text: `GitHub Webhooks \u2022 ${payload?.repository?.name || "Desconocido"}`
+          },
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      ],
+      username: "GitHub",
+      avatarUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+    };
+  }
+};
+
+// src/infrastructure/webhooks/handlers/stripe.webhook-handler.ts
+var StripeWebhookHandler = class {
+  appId = "stripe";
+  async handle(payload, headers) {
+    const eventType = payload.type || "unknown";
+    const dataObject = payload.data?.object || {};
+    if (eventType === "checkout.session.completed") {
+      const customerEmail = dataObject.customer_details?.email || "N/A";
+      const amountTotal = (dataObject.amount_total || 0) / 100;
+      const currency = (dataObject.currency || "USD").toUpperCase();
+      const paymentStatus = dataObject.payment_status || "unknown";
+      return {
+        embeds: [
+          {
+            title: "\u{1F4B3} Sesi\xF3n de Pago Completada (Stripe)",
+            description: `Se ha procesado una compra con \xE9xito.`,
+            color: 6511615,
+            // Stripe Purple
+            fields: [
+              { name: "Cliente", value: customerEmail, inline: true },
+              { name: "Monto Total", value: `**$${amountTotal.toFixed(2)} ${currency}**`, inline: true },
+              { name: "Estado", value: `\`${paymentStatus.toUpperCase()}\``, inline: true }
+            ],
+            footer: {
+              text: "Stripe Webhooks"
+            },
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        ],
+        username: "Stripe Payments",
+        avatarUrl: "https://cdn.brandfolder.io/5H442UZV/at/pgyv6t-622838-89q2x/Stripe_Logo_-_Glyph.png"
+      };
+    }
+    if (eventType === "payment_intent.succeeded") {
+      const amount = (dataObject.amount || 0) / 100;
+      const currency = (dataObject.currency || "USD").toUpperCase();
+      const customerId = dataObject.customer || "Invitado";
+      return {
+        embeds: [
+          {
+            title: "\u2705 Pago Exitoso (Payment Intent)",
+            description: `Se ha recibido un pago correctamente.`,
+            color: 3066993,
+            // Green
+            fields: [
+              { name: "ID del Cliente", value: customerId, inline: true },
+              { name: "Monto", value: `**$${amount.toFixed(2)} ${currency}**`, inline: true }
+            ],
+            footer: {
+              text: "Stripe Webhooks"
+            },
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        ],
+        username: "Stripe Payments",
+        avatarUrl: "https://cdn.brandfolder.io/5H442UZV/at/pgyv6t-622838-89q2x/Stripe_Logo_-_Glyph.png"
+      };
+    }
+    return {
+      embeds: [
+        {
+          title: `\u{1F514} Evento Stripe: ${eventType}`,
+          description: `Se recibi\xF3 un evento del tipo \`${eventType}\` desde la plataforma de pagos.`,
+          color: 6511615,
+          footer: {
+            text: "Stripe Webhooks"
+          },
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      ],
+      username: "Stripe Payments",
+      avatarUrl: "https://cdn.brandfolder.io/5H442UZV/at/pgyv6t-622838-89q2x/Stripe_Logo_-_Glyph.png"
+    };
+  }
+};
+
+// src/application/webhook-handler-registry.ts
+var WebhookHandlerRegistry = class {
+  handlers = /* @__PURE__ */ new Map();
+  constructor(handlers) {
+    for (const handler of handlers) {
+      this.handlers.set(handler.appId, handler);
+    }
+  }
+  getHandler(appId) {
+    return this.handlers.get(appId);
   }
 };
 
@@ -406,15 +685,117 @@ var ToggleMemberRolePreferenceUseCase = class {
   }
 };
 
+// src/application/use-cases/process-webhook.ts
+var ProcessWebhookUseCase = class {
+  constructor(webhookHandlerRegistry, discordNotifier, configRepository, logger) {
+    this.webhookHandlerRegistry = webhookHandlerRegistry;
+    this.discordNotifier = discordNotifier;
+    this.configRepository = configRepository;
+    this.logger = logger;
+  }
+  webhookHandlerRegistry;
+  discordNotifier;
+  configRepository;
+  logger;
+  async execute(appId, payload, headers) {
+    this.logger.info(`Procesando webhook entrante para appId: ${appId}`);
+    const config = this.configRepository.getWebhookConfig(appId);
+    if (!config) {
+      throw new Error(`No se encontr\xF3 configuraci\xF3n de webhook para la app: ${appId}`);
+    }
+    let handler = this.webhookHandlerRegistry.getHandler(appId);
+    if (!handler) {
+      this.logger.warn(`No se encontr\xF3 handler espec\xEDfico para "${appId}". Usando handler por defecto.`);
+      handler = this.webhookHandlerRegistry.getHandler("default");
+    }
+    if (!handler) {
+      throw new Error(`No se encontr\xF3 handler (ni el por defecto) para la app: ${appId}`);
+    }
+    const messageOptions = await handler.handle(payload, headers);
+    if (config.webhookUrl) {
+      this.logger.info(`Enviando mensaje de webhook para "${appId}" v\xEDa webhook de Discord.`);
+      await this.discordNotifier.sendToWebhook(config.webhookUrl, messageOptions);
+    } else if (config.channelId) {
+      this.logger.info(`Enviando mensaje de webhook para "${appId}" al canal de Discord: ${config.channelId}`);
+      await this.discordNotifier.sendToChannel(config.channelId, messageOptions);
+    } else {
+      throw new Error(`La configuraci\xF3n de "${appId}" no tiene channelId ni webhookUrl.`);
+    }
+  }
+};
+
+// src/infrastructure/http/controllers/webhook.controller.ts
+var WebhookController = class {
+  constructor(processWebhook, logger) {
+    this.processWebhook = processWebhook;
+    this.logger = logger;
+  }
+  processWebhook;
+  logger;
+  handleWebhook = async (req, res) => {
+    const { appId } = req.params;
+    const payload = req.body;
+    const headers = req.headers;
+    try {
+      await this.processWebhook.execute(appId, payload, headers);
+      res.status(200).json({ success: true, message: `Webhook procesado con \xE9xito para: ${appId}` });
+    } catch (error) {
+      this.logger.error(`Error procesando webhook de ${appId}: ${error.message}`);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+};
+
+// src/infrastructure/http/server.ts
+import express from "express";
+var ExpressServer = class {
+  constructor(webhookController, logger) {
+    this.webhookController = webhookController;
+    this.logger = logger;
+    this.app = express();
+    this.setupMiddlewares();
+    this.setupRoutes();
+  }
+  webhookController;
+  logger;
+  app;
+  setupMiddlewares() {
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
+  }
+  setupRoutes() {
+    this.app.post("/webhooks/:appId", this.webhookController.handleWebhook);
+    this.app.get("/health", (req, res) => {
+      res.status(200).json({ status: "OK", timestamp: /* @__PURE__ */ new Date() });
+    });
+  }
+  start() {
+    const port = process.env.PORT || 3e3;
+    this.app.listen(port, () => {
+      this.logger.info(`\u{1F310} Servidor HTTP escuchando en el puerto ${port}`);
+    });
+  }
+};
+
 // src/infrastructure/discord/commands/ping-command.ts
 import { MessageFlags, SlashCommandBuilder } from "discord.js";
 var PingCommand = class {
-  constructor(getPingStatus) {
+  constructor(getPingStatus, configRepository) {
     this.getPingStatus = getPingStatus;
+    this.configRepository = configRepository;
   }
   getPingStatus;
+  configRepository;
   data = new SlashCommandBuilder().setName("ping").setDescription("Responde con un Pong y verifica el estado del bot.");
   async execute(interaction) {
+    const allowedUsers = this.configRepository.getDeveloperUserIds();
+    if (!allowedUsers.includes(interaction.user.id)) {
+      await interaction.reply({
+        content: "\u274C No tienes permisos para usar este comando.",
+        flags: [MessageFlags.Ephemeral]
+      });
+      return;
+    }
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     const message = await this.getPingStatus.execute();
     await interaction.editReply({ content: message });
@@ -424,14 +805,24 @@ var PingCommand = class {
 // src/infrastructure/discord/commands/test-welcome.command.ts
 import { SlashCommandBuilder as SlashCommandBuilder2, MessageFlags as MessageFlags2 } from "discord.js";
 var TestWelcomeCommand = class {
-  constructor(getWelcomeMessage, welcomeNotifier) {
+  constructor(getWelcomeMessage, welcomeNotifier, configRepository) {
     this.getWelcomeMessage = getWelcomeMessage;
     this.welcomeNotifier = welcomeNotifier;
+    this.configRepository = configRepository;
   }
   getWelcomeMessage;
   welcomeNotifier;
+  configRepository;
   data = new SlashCommandBuilder2().setName("test-welcome").setDescription("Simula y prueba el mensaje de bienvenida en este canal.");
   async execute(interaction) {
+    const allowedUsers = this.configRepository.getDeveloperUserIds();
+    if (!allowedUsers.includes(interaction.user.id)) {
+      await interaction.reply({
+        content: "\u274C No tienes permisos para usar este comando.",
+        flags: [MessageFlags2.Ephemeral]
+      });
+      return;
+    }
     await interaction.deferReply({ flags: [MessageFlags2.Ephemeral] });
     if (!interaction.guildId) {
       await interaction.editReply({ content: "\u274C Este comando solo puede ser ejecutado dentro de un servidor." });
@@ -461,7 +852,8 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  MessageFlags as MessageFlags3
 } from "discord.js";
 var SetupRolesCommand = class {
   constructor(configRepository) {
@@ -474,6 +866,14 @@ var SetupRolesCommand = class {
     )
   );
   async execute(interaction) {
+    const allowedUsers = this.configRepository.getDeveloperUserIds();
+    if (!allowedUsers.includes(interaction.user.id)) {
+      await interaction.reply({
+        content: "\u274C No tienes permisos para usar este comando.",
+        flags: [MessageFlags3.Ephemeral]
+      });
+      return;
+    }
     const seccion = interaction.options.getString("seccion", true);
     if (seccion === "partidas") {
       const mapping = this.configRepository.getPartidasRoleMapping();
@@ -516,7 +916,7 @@ var GuildMemberAddEvent = class {
 };
 
 // src/infrastructure/discord/events/interaction-create.event.ts
-import { Events as Events2, MessageFlags as MessageFlags3 } from "discord.js";
+import { Events as Events2, MessageFlags as MessageFlags4 } from "discord.js";
 var InteractionCreateEvent = class {
   constructor(commandsMap, toggleMemberRolePreference) {
     this.commandsMap = commandsMap;
@@ -541,7 +941,7 @@ var InteractionCreateEvent = class {
   async handleButtonInteraction(interaction) {
     const { customId, member, guildId } = interaction;
     if (!customId.startsWith("role_pref:")) return;
-    await interaction.deferReply({ flags: [MessageFlags3.Ephemeral] });
+    await interaction.deferReply({ flags: [MessageFlags4.Ephemeral] });
     const parts = customId.split(":");
     const seccion = parts[1];
     const roleKey = parts[2];
@@ -599,11 +999,28 @@ container.register({
   configRepository: asClass(StaticConfigRepository).singleton(),
   roleService: asClass(DiscordRoleService).singleton(),
   welcomeNotifier: asClass(DiscordWelcomeNotifier).singleton(),
+  discordNotifier: asClass(DiscordNotifier).singleton(),
+  // Webhook Handlers
+  defaultWebhookHandler: asClass(DefaultWebhookHandler).singleton(),
+  githubWebhookHandler: asClass(GithubWebhookHandler).singleton(),
+  stripeWebhookHandler: asClass(StripeWebhookHandler).singleton(),
+  // Registry de Handlers
+  webhookHandlerRegistry: asFunction((defaultWebhookHandler, githubWebhookHandler, stripeWebhookHandler) => {
+    return new WebhookHandlerRegistry([
+      defaultWebhookHandler,
+      githubWebhookHandler,
+      stripeWebhookHandler
+    ]);
+  }).singleton(),
   // Use Cases
   getPingStatus: asClass(GetPingStatusUseCase).singleton(),
   getWelcomeMessage: asClass(GetWelcomeMessageUseCase).singleton(),
   handleNewMember: asClass(HandleNewMemberUseCase).singleton(),
   toggleMemberRolePreference: asClass(ToggleMemberRolePreferenceUseCase).singleton(),
+  processWebhook: asClass(ProcessWebhookUseCase).singleton(),
+  // Servidor Web
+  webhookController: asClass(WebhookController).singleton(),
+  expressServer: asClass(ExpressServer).singleton(),
   // Comandos
   pingCommand: asClass(PingCommand).singleton(),
   testWelcomeCommand: asClass(TestWelcomeCommand).singleton(),
@@ -643,7 +1060,7 @@ if (!process.env.DISCORD_TOKEN) {
   console.error("\u274C Error: DISCORD_TOKEN no definido.");
   process.exit(1);
 }
-var client = new Client2({
+var client = new Client3({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers
@@ -662,4 +1079,6 @@ for (const event of getRegisteredEvents()) {
 client.once(Events3.ClientReady, (readyClient) => {
   console.log(`\u{1F680} Bot listo y escuchando como: ${readyClient.user.tag}`);
 });
+var expressServer = container.resolve("expressServer");
+expressServer.start();
 client.login(process.env.DISCORD_TOKEN);
