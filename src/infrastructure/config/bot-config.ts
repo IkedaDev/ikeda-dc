@@ -8,6 +8,7 @@ export interface BotConfig {
   defaultRoleIds: string[];
   partidasRoleMapping: Record<string, string>;
   welcomeTemplates: WelcomeTemplateDto[];
+  developerUserIds: string[];
 }
 
 export const botConfig: BotConfig = {
@@ -22,6 +23,9 @@ export const botConfig: BotConfig = {
     'arams': '1524972549782638683',
     'torneos': '1524841327144079441',
   },
+  developerUserIds: [
+    '410457473892483072', 
+  ],
   welcomeTemplates: [
     // --- Regiones de Runaterra ---
     {

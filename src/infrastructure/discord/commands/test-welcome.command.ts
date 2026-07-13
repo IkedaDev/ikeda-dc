@@ -2,6 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags } from '
 import { Command } from '../interfaces/command';
 import { GetWelcomeMessageUseCase } from '../../../application/use-cases/get-welcome-message';
 import { IWelcomeNotifier } from '../../../domain/ports/welcome-notifier.interface';
+import { IConfigRepository } from '../../../domain/ports/config-repository.interface';
 
 export class TestWelcomeCommand implements Command {
   public data = new SlashCommandBuilder()
@@ -10,10 +11,21 @@ export class TestWelcomeCommand implements Command {
 
   constructor(
     private getWelcomeMessage: GetWelcomeMessageUseCase,
-    private welcomeNotifier: IWelcomeNotifier
+    private welcomeNotifier: IWelcomeNotifier,
+    private configRepository: IConfigRepository
   ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+
+    const allowedUsers = this.configRepository.getDeveloperUserIds();
+    if (!allowedUsers.includes(interaction.user.id)) {
+      await interaction.reply({ 
+        content: '❌ No tienes permisos para usar este comando.', 
+        flags: [MessageFlags.Ephemeral] 
+      });
+      return;
+    }
+
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
     if (!interaction.guildId) {

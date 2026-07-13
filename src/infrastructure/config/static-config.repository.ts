@@ -29,4 +29,8 @@ export class StaticConfigRepository implements IConfigRepository {
   getGuildId(): string {
     return botConfig.guildId;
   }
+
+  getDeveloperUserIds(): string[] {
+    return botConfig.developerUserIds;
+  }
 }

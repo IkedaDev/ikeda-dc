@@ -5,7 +5,8 @@ import {
   ActionRowBuilder, 
   ButtonBuilder, 
   ButtonStyle, 
-  PermissionFlagsBits 
+  PermissionFlagsBits, 
+  MessageFlags
 } from 'discord.js';
 import { Command } from '../interfaces/command';
 import { IConfigRepository } from '../../../domain/ports/config-repository.interface';
@@ -27,6 +28,17 @@ export class SetupRolesCommand implements Command {
   constructor(private configRepository: IConfigRepository) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+
+    const allowedUsers = this.configRepository.getDeveloperUserIds();
+    if (!allowedUsers.includes(interaction.user.id)) {
+      await interaction.reply({ 
+        content: '❌ No tienes permisos para usar este comando.', 
+        flags: [MessageFlags.Ephemeral] 
+      });
+      return;
+    }
+
+
     const seccion = interaction.options.getString('seccion', true);
 
     if (seccion === 'partidas') {

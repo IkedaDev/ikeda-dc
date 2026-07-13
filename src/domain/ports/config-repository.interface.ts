@@ -13,4 +13,5 @@ export interface IConfigRepository {
   getBotToken(): string;
   getClientId(): string;
   getGuildId(): string;
+  getDeveloperUserIds(): string[];
 }
