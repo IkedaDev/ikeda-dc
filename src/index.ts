@@ -1,8 +1,7 @@
-import "dotenv/config"
+import "dotenv/config";
 
-import { Client, Events, GatewayIntentBits, Interaction } from "discord.js";
-import { container, getRegisteredCommands } from "./container";
-import { GuildMemberAddEvent } from "./infrastructure/discord/events/guild-member-add.event";
+import { Client, Events, GatewayIntentBits } from "discord.js";
+import { getRegisteredEvents } from "./container";
 
 if (!process.env.DISCORD_TOKEN) {
   console.error('❌ Error: DISCORD_TOKEN no definido.');
@@ -16,33 +15,16 @@ const client = new Client({
   ],
 });
 
-const welcomeEvent = new GuildMemberAddEvent(container.resolve('getWelcomeMessage'));
-client.on(welcomeEvent.name as any, (member) => welcomeEvent.execute(member));
-
-// Obtenemos los comandos listos desde nuestra arquitectura limpia
-const commands = getRegisteredCommands();
+for (const event of getRegisteredEvents()) {
+  if (event.once) {
+    client.once(event.name as any, (...args: any[]) => event.execute(...args));
+  } else {
+    client.on(event.name as any, (...args: any[]) => event.execute(...args));
+  }
+}
 
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`🚀 Bot listo y escuchando como: ${readyClient.user.tag}`);
-});
-
-// Manejador central de interacciones
-client.on('interactionCreate', async (interaction: Interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  const command = commands.get(interaction.commandName);
-  if (!command) return;
-
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(`Error ejecutando el comando /${interaction.commandName}:`, error);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: 'Hubo un error al ejecutar este comando.', ephemeral: true });
-    } else {
-      await interaction.reply({ content: 'Hubo un error al ejecutar este comando.', ephemeral: true });
-    }
-  }
 });
 
 client.login(process.env.DISCORD_TOKEN);
