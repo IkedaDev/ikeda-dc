@@ -1,6 +1,6 @@
 // src/index.ts
 import "dotenv/config";
-import { Client as Client3, Events as Events3, GatewayIntentBits } from "discord.js";
+import { Client as Client3, Events as Events4, GatewayIntentBits } from "discord.js";
 import { asValue } from "awilix";
 
 // src/container.ts
@@ -35,6 +35,13 @@ var botConfig = {
   discordToken: process.env.DISCORD_TOKEN || "",
   clientId: process.env.CLIENT_ID || "",
   guildId: process.env.GUILD_ID || "",
+  socialLinks: {
+    whatsapp: "https://chat.whatsapp.com/DjhDvzEgiAMHP6CFxm6PAK?mode=gi_t",
+    facebook: "",
+    tiktok: "",
+    instagram: "https://www.instagram.com/gamezone.league/",
+    web: ""
+  },
   welcomeChannelId: "1279220559787458694",
   defaultRoleIds: ["1524839430454640900"],
   partidasRoleMapping: {
@@ -43,21 +50,19 @@ var botConfig = {
     "arams": "1524972549782638683",
     "torneos": "1524841327144079441"
   },
+  partidasExtraRoleId: "1524840821839626250",
+  lineasRoleMapping: {
+    "top": "1524841608451854366",
+    "jg": "1524841840124362823",
+    "mid": "1524841692866281533",
+    "adc": "1524842084513615923",
+    "supp": "1524841744854810834"
+  },
   webhooks: [
     {
       appId: "default",
-      channelId: process.env.WEBHOOK_DEFAULT_CHANNEL_ID || "1279220559787458694",
+      channelId: process.env.WEBHOOK_DEFAULT_CHANNEL_ID || "1525595909994315957",
       webhookUrl: process.env.WEBHOOK_DEFAULT_DISCORD_URL
-    },
-    {
-      appId: "github",
-      channelId: process.env.WEBHOOK_GITHUB_CHANNEL_ID || "1279220559787458694",
-      webhookUrl: process.env.WEBHOOK_GITHUB_DISCORD_URL
-    },
-    {
-      appId: "stripe",
-      channelId: process.env.WEBHOOK_STRIPE_CHANNEL_ID || "1279220559787458694",
-      webhookUrl: process.env.WEBHOOK_STRIPE_DISCORD_URL
     }
   ],
   developerUserIds: [
@@ -202,6 +207,12 @@ var StaticConfigRepository = class {
   getPartidasRoleMapping() {
     return botConfig.partidasRoleMapping;
   }
+  getPartidasExtraRoleId() {
+    return botConfig.partidasExtraRoleId;
+  }
+  getLineasRoleMapping() {
+    return botConfig.lineasRoleMapping;
+  }
   getBotToken() {
     return botConfig.discordToken;
   }
@@ -216,6 +227,9 @@ var StaticConfigRepository = class {
   }
   getWebhookConfig(appId) {
     return botConfig.webhooks.find((w) => w.appId === appId);
+  }
+  getSocialLinks() {
+    return botConfig.socialLinks;
   }
 };
 
@@ -331,205 +345,33 @@ ${JSON.stringify(payload, null, 2)}
 \`\`\`` : "Webhook vac\xEDo");
     const embeds = payload?.embeds || [];
     return {
-      content: content.length > 2e3 ? `${content.substring(0, 1990)}...` : content,
-      embeds,
-      username: payload?.username || "Notificaciones Ikeda",
-      avatarUrl: payload?.avatarUrl || "https://i.imgur.com/veROHNQ.jpeg"
-    };
-  }
-};
-
-// src/infrastructure/webhooks/handlers/github.webhook-handler.ts
-var GithubWebhookHandler = class {
-  appId = "github";
-  async handle(payload, headers) {
-    const event = headers["x-github-event"] || "unknown";
-    if (event === "ping") {
-      return {
-        embeds: [
-          {
-            title: "\u{1F7E2} GitHub Webhook Vinculado",
-            description: `El webhook ha sido configurado con \xE9xito para el repositorio: **${payload?.repository?.full_name}**`,
-            color: 3066993,
-            // Green
-            timestamp: (/* @__PURE__ */ new Date()).toISOString()
-          }
-        ],
-        username: "GitHub",
-        avatarUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-      };
-    }
-    if (event === "push") {
-      const repoName = payload.repository?.name || "repo";
-      const repoUrl = payload.repository?.html_url || "";
-      const pusher = payload.pusher?.name || "unknown";
-      const ref = payload.ref || "";
-      const branch = ref.replace("refs/heads/", "");
-      const commits = payload.commits || [];
-      let commitListText = "";
-      if (commits.length > 0) {
-        commitListText = commits.slice(0, 5).map((c) => `[\`${c.id.substring(0, 7)}\`](${c.url}) - ${c.message.split("\n")[0]} (por *${c.author.name}*)`).join("\n");
-        if (commits.length > 5) {
-          commitListText += `
-*y ${commits.length - 5} commits m\xE1s...*`;
-        }
-      } else {
-        commitListText = "No hay commits en este push.";
-      }
-      return {
-        embeds: [
-          {
-            title: `\u{1F680} Push detectado en [${repoName}:${branch}]`,
-            url: `${repoUrl}/tree/${branch}`,
-            description: commitListText,
-            color: 616922,
-            // GitHub Blue
-            author: {
-              name: pusher,
-              icon_url: payload.sender?.avatar_url || ""
-            },
-            footer: {
-              text: `GitHub Webhooks \u2022 ${repoName}`
-            },
-            timestamp: (/* @__PURE__ */ new Date()).toISOString()
-          }
-        ],
-        username: "GitHub",
-        avatarUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-      };
-    }
-    if (event === "pull_request") {
-      const action = payload.action;
-      const pr = payload.pull_request;
-      const repoName = payload.repository?.name || "repo";
-      const user = pr?.user?.login || "unknown";
-      const title = pr?.title || "No Title";
-      const url = pr?.html_url || "";
-      let color = 2991182;
-      let actionWord = "abierto";
-      if (action === "closed") {
-        if (pr?.merged) {
-          color = 8540383;
-          actionWord = "fusionado \u{1F49C}";
-        } else {
-          color = 13574702;
-          actionWord = "cerrado \u{1F534}";
-        }
-      }
-      return {
-        embeds: [
-          {
-            title: `\u{1F50C} Pull Request ${actionWord} en ${repoName}`,
-            url,
-            description: `**#${pr?.number} - ${title}**
-
-Modificaciones: \`+${pr?.additions}\` \`-${pr?.deletions}\` en \`${pr?.changed_files}\` archivos.`,
-            color,
-            author: {
-              name: user,
-              icon_url: pr?.user?.avatar_url || ""
-            },
-            footer: {
-              text: `GitHub Webhooks \u2022 ${repoName}`
-            },
-            timestamp: (/* @__PURE__ */ new Date()).toISOString()
-          }
-        ],
-        username: "GitHub",
-        avatarUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-      };
-    }
-    return {
       embeds: [
         {
-          title: `\u{1F514} Evento GitHub: ${event}`,
-          description: `Se recibi\xF3 una notificaci\xF3n de GitHub del tipo \`${event}\`.`,
+          title: `\u{1F514} Evento GitHub: `,
+          description: `Se recibi\xF3 una notificaci\xF3n de GitHub del tipo.`,
           color: 2369839,
-          // GitHub Dark Gray
           footer: {
             text: `GitHub Webhooks \u2022 ${payload?.repository?.name || "Desconocido"}`
+          },
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        {
+          title: `\u{1F50C} Pull Request`,
+          url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+          description: `Description Test`,
+          color: 2369839,
+          author: {
+            name: "Ikeda",
+            icon_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+          },
+          footer: {
+            text: `GitHub Webhooks \u2022`
           },
           timestamp: (/* @__PURE__ */ new Date()).toISOString()
         }
       ],
       username: "GitHub",
       avatarUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-    };
-  }
-};
-
-// src/infrastructure/webhooks/handlers/stripe.webhook-handler.ts
-var StripeWebhookHandler = class {
-  appId = "stripe";
-  async handle(payload, headers) {
-    const eventType = payload.type || "unknown";
-    const dataObject = payload.data?.object || {};
-    if (eventType === "checkout.session.completed") {
-      const customerEmail = dataObject.customer_details?.email || "N/A";
-      const amountTotal = (dataObject.amount_total || 0) / 100;
-      const currency = (dataObject.currency || "USD").toUpperCase();
-      const paymentStatus = dataObject.payment_status || "unknown";
-      return {
-        embeds: [
-          {
-            title: "\u{1F4B3} Sesi\xF3n de Pago Completada (Stripe)",
-            description: `Se ha procesado una compra con \xE9xito.`,
-            color: 6511615,
-            // Stripe Purple
-            fields: [
-              { name: "Cliente", value: customerEmail, inline: true },
-              { name: "Monto Total", value: `**$${amountTotal.toFixed(2)} ${currency}**`, inline: true },
-              { name: "Estado", value: `\`${paymentStatus.toUpperCase()}\``, inline: true }
-            ],
-            footer: {
-              text: "Stripe Webhooks"
-            },
-            timestamp: (/* @__PURE__ */ new Date()).toISOString()
-          }
-        ],
-        username: "Stripe Payments",
-        avatarUrl: "https://cdn.brandfolder.io/5H442UZV/at/pgyv6t-622838-89q2x/Stripe_Logo_-_Glyph.png"
-      };
-    }
-    if (eventType === "payment_intent.succeeded") {
-      const amount = (dataObject.amount || 0) / 100;
-      const currency = (dataObject.currency || "USD").toUpperCase();
-      const customerId = dataObject.customer || "Invitado";
-      return {
-        embeds: [
-          {
-            title: "\u2705 Pago Exitoso (Payment Intent)",
-            description: `Se ha recibido un pago correctamente.`,
-            color: 3066993,
-            // Green
-            fields: [
-              { name: "ID del Cliente", value: customerId, inline: true },
-              { name: "Monto", value: `**$${amount.toFixed(2)} ${currency}**`, inline: true }
-            ],
-            footer: {
-              text: "Stripe Webhooks"
-            },
-            timestamp: (/* @__PURE__ */ new Date()).toISOString()
-          }
-        ],
-        username: "Stripe Payments",
-        avatarUrl: "https://cdn.brandfolder.io/5H442UZV/at/pgyv6t-622838-89q2x/Stripe_Logo_-_Glyph.png"
-      };
-    }
-    return {
-      embeds: [
-        {
-          title: `\u{1F514} Evento Stripe: ${eventType}`,
-          description: `Se recibi\xF3 un evento del tipo \`${eventType}\` desde la plataforma de pagos.`,
-          color: 6511615,
-          footer: {
-            text: "Stripe Webhooks"
-          },
-          timestamp: (/* @__PURE__ */ new Date()).toISOString()
-        }
-      ],
-      username: "Stripe Payments",
-      avatarUrl: "https://cdn.brandfolder.io/5H442UZV/at/pgyv6t-622838-89q2x/Stripe_Logo_-_Glyph.png"
     };
   }
 };
@@ -657,6 +499,10 @@ var ToggleMemberRolePreferenceUseCase = class {
     let roleId;
     if (section === "partidas") {
       const mapping = this.configRepository.getPartidasRoleMapping();
+      roleId = mapping[roleKey];
+    }
+    if (section === "lineas") {
+      const mapping = this.configRepository.getLineasRoleMapping();
       roleId = mapping[roleKey];
     }
     if (!roleId) {
@@ -862,7 +708,8 @@ var SetupRolesCommand = class {
   configRepository;
   data = new SlashCommandBuilder3().setName("setup-roles").setDescription("Despliega un panel de autogesti\xF3n de roles.").setDefaultMemberPermissions(PermissionFlagsBits.Administrator).addStringOption(
     (option) => option.setName("seccion").setDescription("La secci\xF3n de configuraci\xF3n que deseas desplegar").setRequired(true).addChoices(
-      { name: "Preferencias de Partida", value: "partidas" }
+      { name: "Preferencias de Partida", value: "partidas" },
+      { name: "Preferencias de Linea", value: "lineas" }
     )
   );
   async execute(interaction) {
@@ -880,7 +727,7 @@ var SetupRolesCommand = class {
       if (!mapping || Object.keys(mapping).length === 0) {
         await interaction.reply({
           content: "\u274C Error: No hay roles configurados para la secci\xF3n de partidas en el repositorio de configuraci\xF3n.",
-          ephemeral: true
+          flags: MessageFlags3.Ephemeral
         });
         return;
       }
@@ -895,6 +742,76 @@ var SetupRolesCommand = class {
       );
       await interaction.reply({ embeds: [embed], components: [row] });
     }
+    if (seccion === "lineas") {
+      const mapping = this.configRepository.getPartidasRoleMapping();
+      if (!mapping || Object.keys(mapping).length === 0) {
+        await interaction.reply({
+          content: "\u274C Error: No hay roles configurados para la secci\xF3n de partidas en el repositorio de configuraci\xF3n.",
+          flags: MessageFlags3.Ephemeral
+        });
+        return;
+      }
+      const embed = new EmbedBuilder2().setColor("#00f0ff").setTitle("\u{1F5FA}\uFE0F Selecciona tus L\xEDneas").setDescription(
+        "Elige los carriles que juegas habitualmente en la Grieta del Invocador para recibir tu rol correspondiente en el servidor:\n\n\u2694\uFE0F **Toplane:** El carril superior. Duelos individuales, tanques y luchadores.\n\u{1F332} **Jungla:** El control del mapa. Objetivos, campamentos y emboscadas.\n\u{1F52E} **Midlane:** El carril central. Magos, asesinos y rotaciones constantes.\n\u{1F3F9} **ADC / Tirador:** El carril inferior. Da\xF1o continuo a distancia y escalado.\n\u{1F6E1}\uFE0F **Support:** La utilidad y visi\xF3n. Protecci\xF3n, iniciaciones y control de masas."
+      );
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("role_pref:lineas:top").setLabel("Top").setEmoji("\u2694\uFE0F").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("role_pref:lineas:jg").setLabel("Jungla").setEmoji("\u{1F332}").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("role_pref:lineas:mid").setLabel("Mid").setEmoji("\u{1F52E}").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId("role_pref:lineas:adc").setLabel("ADC").setEmoji("\u{1F3F9}").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId("role_pref:lineas:supp").setLabel("Support").setEmoji("\u{1F6E1}\uFE0F").setStyle(ButtonStyle.Secondary)
+      );
+      await interaction.reply({ embeds: [embed], components: [row] });
+    }
+  }
+};
+
+// src/infrastructure/discord/commands/redes-command.ts
+import { EmbedBuilder as EmbedBuilder3, SlashCommandBuilder as SlashCommandBuilder4, MessageFlags as MessageFlags4 } from "discord.js";
+var RedesCommand = class {
+  constructor(configRepository) {
+    this.configRepository = configRepository;
+  }
+  configRepository;
+  data = new SlashCommandBuilder4().setName("redes").setDescription("Muestra los enlaces oficiales de nuestras redes sociales.");
+  async execute(interaction) {
+    const socialLinks = this.configRepository.getSocialLinks();
+    const descriptionLines = [
+      "\xA1Mantente conectado con nuestra comunidad! Aqu\xED tienes nuestros enlaces oficiales:\n"
+    ];
+    let hasLinks = false;
+    if (socialLinks.whatsapp && socialLinks.whatsapp.trim() !== "") {
+      descriptionLines.push(`\u{1F4AC} **WhatsApp:** [Unirse al grupo](${socialLinks.whatsapp.trim()})`);
+      hasLinks = true;
+    }
+    if (socialLinks.facebook && socialLinks.facebook.trim() !== "") {
+      descriptionLines.push(`\u{1F465} **Facebook:** [Visitar p\xE1gina](${socialLinks.facebook.trim()})`);
+      hasLinks = true;
+    }
+    if (socialLinks.tiktok && socialLinks.tiktok.trim() !== "") {
+      descriptionLines.push(`\u{1F3B5} **TikTok:** [Seguir en TikTok](${socialLinks.tiktok.trim()})`);
+      hasLinks = true;
+    }
+    if (socialLinks.instagram && socialLinks.instagram.trim() !== "") {
+      descriptionLines.push(`\u{1F4F8} **Instagram:** [Seguir en Instagram](${socialLinks.instagram.trim()})`);
+      hasLinks = true;
+    }
+    if (socialLinks.web && socialLinks.web.trim() !== "") {
+      descriptionLines.push(`\u{1F310} **Sitio Web:** [Visitar sitio web](${socialLinks.web.trim()})`);
+      hasLinks = true;
+    }
+    if (!hasLinks) {
+      await interaction.reply({
+        content: "\u274C No hay redes sociales configuradas en este momento.",
+        flags: [MessageFlags4.Ephemeral]
+      });
+      return;
+    }
+    const embed = new EmbedBuilder3().setColor("#9b59b6").setTitle("\u{1F517} Enlaces de Nuestras Redes Sociales").setDescription(descriptionLines.join("\n")).setThumbnail(interaction.guild?.iconURL() || null).setTimestamp().setFooter({
+      text: interaction.guild?.name || "Comunidad",
+      iconURL: interaction.guild?.iconURL() || void 0
+    });
+    await interaction.reply({ embeds: [embed] });
   }
 };
 
@@ -915,8 +832,48 @@ var GuildMemberAddEvent = class {
   }
 };
 
+// src/infrastructure/discord/events/guild-member-update.event.ts
+import { Events as Events2 } from "discord.js";
+var GuildMemberUpdateEvent = class {
+  constructor(configRepository, roleService, logger) {
+    this.configRepository = configRepository;
+    this.roleService = roleService;
+    this.logger = logger;
+  }
+  configRepository;
+  roleService;
+  logger;
+  name = Events2.GuildMemberUpdate;
+  async execute(oldMember, newMember) {
+    const oldRoles = oldMember.roles.cache;
+    const newRoles = newMember.roles.cache;
+    if (oldRoles.equals(newRoles)) {
+      return;
+    }
+    const guildId = newMember.guild.id;
+    const memberId = newMember.id;
+    const memberTag = newMember.user.tag;
+    try {
+      const mapping = this.configRepository.getPartidasRoleMapping();
+      const extraRoleId = this.configRepository.getPartidasExtraRoleId();
+      const partidasRoleIds = Object.values(mapping);
+      const hasAnyPartidasRole = partidasRoleIds.some((roleId) => newRoles.has(roleId));
+      const hasExtraRole = newRoles.has(extraRoleId);
+      if (hasAnyPartidasRole && !hasExtraRole) {
+        this.logger.info(`GuildMemberUpdateEvent: Miembro ${memberTag} tiene roles de partidas pero no el rol extra (${extraRoleId}). Asign\xE1ndolo.`);
+        await this.roleService.assignRole(guildId, memberId, extraRoleId);
+      } else if (!hasAnyPartidasRole && hasExtraRole) {
+        this.logger.info(`GuildMemberUpdateEvent: Miembro ${memberTag} no tiene roles de partidas pero tiene el rol extra (${extraRoleId}). Removi\xE9ndolo.`);
+        await this.roleService.removeRole(guildId, memberId, extraRoleId);
+      }
+    } catch (error) {
+      this.logger.error(`Error en GuildMemberUpdateEvent al procesar roles para miembro ${memberTag}:`, error);
+    }
+  }
+};
+
 // src/infrastructure/discord/events/interaction-create.event.ts
-import { Events as Events2, MessageFlags as MessageFlags4 } from "discord.js";
+import { Events as Events3, MessageFlags as MessageFlags5 } from "discord.js";
 var InteractionCreateEvent = class {
   constructor(commandsMap, toggleMemberRolePreference) {
     this.commandsMap = commandsMap;
@@ -924,7 +881,7 @@ var InteractionCreateEvent = class {
   }
   commandsMap;
   toggleMemberRolePreference;
-  name = Events2.InteractionCreate;
+  name = Events3.InteractionCreate;
   async execute(interaction) {
     if (interaction.isButton()) {
       await this.handleButtonInteraction(interaction);
@@ -941,16 +898,16 @@ var InteractionCreateEvent = class {
   async handleButtonInteraction(interaction) {
     const { customId, member, guildId } = interaction;
     if (!customId.startsWith("role_pref:")) return;
-    await interaction.deferReply({ flags: [MessageFlags4.Ephemeral] });
-    const parts = customId.split(":");
-    const seccion = parts[1];
-    const roleKey = parts[2];
-    const memberId = member?.id;
-    if (!guildId || !memberId) {
-      await interaction.editReply({ content: "\u274C La interacci\xF3n no es v\xE1lida para este servidor o miembro." });
-      return;
-    }
     try {
+      await interaction.deferReply({ flags: [MessageFlags5.Ephemeral] });
+      const parts = customId.split(":");
+      const seccion = parts[1];
+      const roleKey = parts[2];
+      const memberId = member?.id;
+      if (!guildId || !memberId) {
+        await interaction.editReply({ content: "\u274C La interacci\xF3n no es v\xE1lida para este servidor o miembro." });
+        return;
+      }
       const result = await this.toggleMemberRolePreference.execute(guildId, memberId, seccion, roleKey);
       if (result.action === "added") {
         await interaction.editReply({
@@ -962,10 +919,15 @@ var InteractionCreateEvent = class {
         });
       }
     } catch (error) {
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({
-          content: `\u274C ${error instanceof Error ? error.message : "Hubo un error de comunicaci\xF3n interna al modificar tus roles."}`
-        });
+      console.error("Error al manejar interacci\xF3n de bot\xF3n:", error);
+      try {
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({
+            content: `\u274C ${error instanceof Error ? error.message : "Hubo un error de comunicaci\xF3n interna al modificar tus roles."}`
+          });
+        }
+      } catch (innerError) {
+        console.error("No se pudo enviar respuesta de error de interacci\xF3n:", innerError);
       }
     }
   }
@@ -978,11 +940,17 @@ var InteractionCreateEvent = class {
     try {
       await command.execute(interaction);
     } catch (error) {
-      console.error(`Error ejecutando el comando /${interaction.commandName}:`, error);
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: "Hubo un error al ejecutar este comando.", ephemeral: true });
+      console.error("Error al ejecutar el comando:", error);
+      const errorMessage = "Hubo un error al ejecutar este comando.";
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({
+          content: errorMessage
+        });
       } else {
-        await interaction.reply({ content: "Hubo un error al ejecutar este comando.", ephemeral: true });
+        await interaction.reply({
+          content: errorMessage,
+          flags: [MessageFlags5.Ephemeral]
+        });
       }
     }
   }
@@ -1002,14 +970,10 @@ container.register({
   discordNotifier: asClass(DiscordNotifier).singleton(),
   // Webhook Handlers
   defaultWebhookHandler: asClass(DefaultWebhookHandler).singleton(),
-  githubWebhookHandler: asClass(GithubWebhookHandler).singleton(),
-  stripeWebhookHandler: asClass(StripeWebhookHandler).singleton(),
   // Registry de Handlers
-  webhookHandlerRegistry: asFunction((defaultWebhookHandler, githubWebhookHandler, stripeWebhookHandler) => {
+  webhookHandlerRegistry: asFunction((defaultWebhookHandler) => {
     return new WebhookHandlerRegistry([
-      defaultWebhookHandler,
-      githubWebhookHandler,
-      stripeWebhookHandler
+      defaultWebhookHandler
     ]);
   }).singleton(),
   // Use Cases
@@ -1025,8 +989,10 @@ container.register({
   pingCommand: asClass(PingCommand).singleton(),
   testWelcomeCommand: asClass(TestWelcomeCommand).singleton(),
   setupRolesCommand: asClass(SetupRolesCommand).singleton(),
+  redesCommand: asClass(RedesCommand).singleton(),
   // Eventos
   guildMemberAddEvent: asClass(GuildMemberAddEvent).singleton(),
+  guildMemberUpdateEvent: asClass(GuildMemberUpdateEvent).singleton(),
   // Custom instantiation for InteractionCreateEvent to pass the commands map
   interactionCreateEvent: asFunction((toggleMemberRolePreference) => {
     return new InteractionCreateEvent(
@@ -1040,7 +1006,8 @@ function getRegisteredCommands() {
   const commandKeys = [
     "pingCommand",
     "testWelcomeCommand",
-    "setupRolesCommand"
+    "setupRolesCommand",
+    "redesCommand"
   ];
   for (const key of commandKeys) {
     const command = container.resolve(key);
@@ -1051,7 +1018,8 @@ function getRegisteredCommands() {
 function getRegisteredEvents() {
   return [
     container.resolve("guildMemberAddEvent"),
-    container.resolve("interactionCreateEvent")
+    container.resolve("interactionCreateEvent"),
+    container.resolve("guildMemberUpdateEvent")
   ];
 }
 
@@ -1076,7 +1044,7 @@ for (const event of getRegisteredEvents()) {
     client.on(event.name, (...args) => event.execute(...args));
   }
 }
-client.once(Events3.ClientReady, (readyClient) => {
+client.once(Events4.ClientReady, (readyClient) => {
   console.log(`\u{1F680} Bot listo y escuchando como: ${readyClient.user.tag}`);
 });
 var expressServer = container.resolve("expressServer");

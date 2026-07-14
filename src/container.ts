@@ -40,6 +40,7 @@ import { Command } from './infrastructure/discord/interfaces/command';
 
 // Events
 import { GuildMemberAddEvent } from './infrastructure/discord/events/guild-member-add.event';
+import { GuildMemberUpdateEvent } from './infrastructure/discord/events/guild-member-update.event';
 import { InteractionCreateEvent } from './infrastructure/discord/events/interaction-create.event';
 import { Event } from './infrastructure/discord/interfaces/event';
 
@@ -74,6 +75,7 @@ export interface ICradle {
 
   // Events
   guildMemberAddEvent: GuildMemberAddEvent;
+  guildMemberUpdateEvent: GuildMemberUpdateEvent;
   interactionCreateEvent: InteractionCreateEvent;
 
   // External dependency registered dynamically
@@ -124,6 +126,7 @@ container.register({
 
   // Eventos
   guildMemberAddEvent: asClass(GuildMemberAddEvent).singleton(),
+  guildMemberUpdateEvent: asClass(GuildMemberUpdateEvent).singleton(),
   
   // Custom instantiation for InteractionCreateEvent to pass the commands map
   interactionCreateEvent: asFunction((toggleMemberRolePreference: ToggleMemberRolePreferenceUseCase) => {
@@ -160,6 +163,7 @@ export function getRegisteredCommands(): Map<string, Command> {
 export function getRegisteredEvents(): Event[] {
   return [
     container.resolve<Event>('guildMemberAddEvent' as any),
-    container.resolve<Event>('interactionCreateEvent' as any)
+    container.resolve<Event>('interactionCreateEvent' as any),
+    container.resolve<Event>('guildMemberUpdateEvent' as any)
   ];
 }

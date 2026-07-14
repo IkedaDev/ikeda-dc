@@ -18,6 +18,10 @@ export class StaticConfigRepository implements IConfigRepository {
     return botConfig.partidasRoleMapping;
   }
 
+  getPartidasExtraRoleId(): string {
+    return botConfig.partidasExtraRoleId;
+  }
+
   getLineasRoleMapping(): Record<string, string> {
     return botConfig.lineasRoleMapping;
   }

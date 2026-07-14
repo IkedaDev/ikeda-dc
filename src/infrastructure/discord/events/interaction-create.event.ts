@@ -32,20 +32,19 @@ export class InteractionCreateEvent implements Event {
     const { customId, member, guildId } = interaction;
     if (!customId.startsWith('role_pref:')) return;
 
-    
-    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
-
-    const parts = customId.split(':');
-    const seccion = parts[1];
-    const roleKey = parts[2];
-    const memberId = member?.id;
-
-    if (!guildId || !memberId) {
-      await interaction.editReply({ content: '❌ La interacción no es válida para este servidor o miembro.' });
-      return;
-    }
-
     try {
+      await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+      const parts = customId.split(':');
+      const seccion = parts[1];
+      const roleKey = parts[2];
+      const memberId = member?.id;
+
+      if (!guildId || !memberId) {
+        await interaction.editReply({ content: '❌ La interacción no es válida para este servidor o miembro.' });
+        return;
+      }
+
       const result = await this.toggleMemberRolePreference.execute(guildId, memberId, seccion, roleKey);
 
       if (result.action === 'added') {
@@ -58,10 +57,15 @@ export class InteractionCreateEvent implements Event {
         });
       }
     } catch (error) {
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({ 
-          content: `❌ ${error instanceof Error ? error.message : 'Hubo un error de comunicación interna al modificar tus roles.'}` 
-        });
+      console.error('Error al manejar interacción de botón:', error);
+      try {
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({ 
+            content: `❌ ${error instanceof Error ? error.message : 'Hubo un error de comunicación interna al modificar tus roles.'}` 
+          });
+        }
+      } catch (innerError) {
+        console.error('No se pudo enviar respuesta de error de interacción:', innerError);
       }
     }
   }

@@ -32,4 +32,5 @@ export interface IConfigRepository {
   getDeveloperUserIds(): string[];
   getWebhookConfig(appId: string): WebhookAppConfig | undefined;
   getSocialLinks(): SocialLinks;
+  getPartidasExtraRoleId(): string;
 }
