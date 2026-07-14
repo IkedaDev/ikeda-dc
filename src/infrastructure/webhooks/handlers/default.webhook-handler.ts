@@ -13,7 +13,7 @@ export class DefaultWebhookHandler implements IWebhookHandler {
         {
           title: `🔔 Evento GitHub: `,
           description: `Se recibió una notificación de GitHub del tipo.`,
-          color: 0x24292f, // GitHub Dark Gray
+          color: 0x24292f, 
           footer: {
             text: `GitHub Webhooks • ${payload?.repository?.name || 'Desconocido'}`,
           },

@@ -22,6 +22,7 @@ export class SetupRolesCommand implements Command {
         .setRequired(true)
         .addChoices(
           { name: 'Preferencias de Partida', value: 'partidas' },
+          { name: 'Preferencias de Roles', value: 'lineas' },
         )
     ) as SlashCommandBuilder;
 
@@ -85,6 +86,60 @@ export class SetupRolesCommand implements Command {
           .setLabel('Torneos')
           .setEmoji('🔥')
           .setStyle(ButtonStyle.Danger)
+      );
+
+      await interaction.reply({ embeds: [embed], components: [row] });
+    }
+
+    if (seccion === 'lineas') {
+      const mapping = this.configRepository.getPartidasRoleMapping();
+      
+      if (!mapping || Object.keys(mapping).length === 0) {
+        await interaction.reply({ 
+          content: '❌ Error: No hay roles configurados para la sección de partidas en el repositorio de configuración.', 
+          ephemeral: true 
+        });
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+      .setColor('#00f0ff') 
+      .setTitle('🗺️ Selecciona tus Líneas')
+      .setDescription(
+        'Elige los carriles que juegas habitualmente en la Grieta del Invocador para recibir tu rol correspondiente en el servidor:\n\n' +
+        '⚔️ **Toplane:** El carril superior. Duelos individuales, tanques y luchadores.\n' +
+        '🌲 **Jungla:** El control del mapa. Objetivos, campamentos y emboscadas.\n' +
+        '🔮 **Midlane:** El carril central. Magos, asesinos y rotaciones constantes.\n' +
+        '🏹 **ADC / Tirador:** El carril inferior. Daño continuo a distancia y escalado.\n' +
+        '🛡️ **Support:** La utilidad y visión. Protección, iniciaciones y control de masas.'
+      );
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId('role_pref:lineas:top')
+          .setLabel('Top')
+          .setEmoji('⚔️')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('role_pref:lineas:jg')
+          .setLabel('Jungla')
+          .setEmoji('🌲')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('role_pref:lineas:mid')
+          .setLabel('Mid')
+          .setEmoji('🔮')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('role_pref:lineas:adc')
+          .setLabel('ADC')
+          .setEmoji('🏹')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('role_pref:lineas:supp')
+          .setLabel('Support')
+          .setEmoji('🛡️')
+          .setStyle(ButtonStyle.Secondary)
       );
 
       await interaction.reply({ embeds: [embed], components: [row] });

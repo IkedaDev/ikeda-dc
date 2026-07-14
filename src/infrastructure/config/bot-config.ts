@@ -7,6 +7,7 @@ export interface BotConfig {
   welcomeChannelId: string;
   defaultRoleIds: string[];
   partidasRoleMapping: Record<string, string>;
+  lineasRoleMapping: Record<string, string>;
   welcomeTemplates: WelcomeTemplateDto[];
   developerUserIds: string[];
   webhooks: WebhookAppConfig[];
@@ -24,6 +25,14 @@ export const botConfig: BotConfig = {
     'arams': '1524972549782638683',
     'torneos': '1524841327144079441',
   },
+  lineasRoleMapping: {
+    'top': '1524841608451854366',
+    'jg': '1524841840124362823',
+    'mid': '1524841692866281533',
+    'adc': '1524842084513615923',
+    'supp': '1524841744854810834',
+  },
+
   webhooks: [
     {
       appId: 'default',

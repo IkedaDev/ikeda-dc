@@ -18,6 +18,10 @@ export class StaticConfigRepository implements IConfigRepository {
     return botConfig.partidasRoleMapping;
   }
 
+  getLineasRoleMapping(): Record<string, string> {
+    return botConfig.lineasRoleMapping;
+  }
+
   getBotToken(): string {
     return botConfig.discordToken;
   }
