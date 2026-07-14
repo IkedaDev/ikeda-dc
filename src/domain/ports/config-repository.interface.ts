@@ -17,6 +17,7 @@ export interface IConfigRepository {
   getDefaultRoleIds(): string[];
   getWelcomeTemplates(): WelcomeTemplateDto[];
   getPartidasRoleMapping(): Record<string, string>;
+  getLineasRoleMapping(): Record<string, string>;
   getBotToken(): string;
   getClientId(): string;
   getGuildId(): string;

@@ -1,7 +1,13 @@
 import "dotenv/config"
 
 import { REST, Routes } from "discord.js";
-import { getRegisteredCommands } from "../../container";
+import { container, getRegisteredCommands } from "../../container";
+import { asValue } from "awilix";
+
+// Registrar un cliente Discord vacío ficticio para resolver dependencias en tiempo de despliegue
+container.register({
+  discordClient: asValue({} as any)
+});
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;

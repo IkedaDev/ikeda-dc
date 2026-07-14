@@ -24,6 +24,11 @@ export class ToggleMemberRolePreferenceUseCase {
       roleId = mapping[roleKey];
     }
 
+    if (section === 'lineas') {
+      const mapping = this.configRepository.getLineasRoleMapping();
+      roleId = mapping[roleKey];
+    }
+
     if (!roleId) {
       this.logger.warn(`No se encontró configuración de rol para sección "${section}" y clave "${roleKey}"`);
       throw new Error('Configuración de rol no encontrada en el sistema.');

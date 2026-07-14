@@ -32,6 +32,7 @@ export class InteractionCreateEvent implements Event {
     const { customId, member, guildId } = interaction;
     if (!customId.startsWith('role_pref:')) return;
 
+    
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
     const parts = customId.split(':');
@@ -75,11 +76,20 @@ export class InteractionCreateEvent implements Event {
     try {
       await command.execute(interaction);
     } catch (error) {
-      console.error(`Error ejecutando el comando /${interaction.commandName}:`, error);
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: 'Hubo un error al ejecutar este comando.', ephemeral: true });
+      console.error('Error al ejecutar el comando:', error);
+
+      const errorMessage = 'Hubo un error al ejecutar este comando.';
+
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ 
+          content: errorMessage 
+        });
       } else {
-        await interaction.reply({ content: 'Hubo un error al ejecutar este comando.', ephemeral: true });
+        
+        await interaction.reply({ 
+          content: errorMessage, 
+          flags: [MessageFlags.Ephemeral] 
+        });
       }
     }
   }

@@ -22,7 +22,7 @@ export class SetupRolesCommand implements Command {
         .setRequired(true)
         .addChoices(
           { name: 'Preferencias de Partida', value: 'partidas' },
-          { name: 'Preferencias de Roles', value: 'lineas' },
+          { name: 'Preferencias de Linea', value: 'lineas' },
         )
     ) as SlashCommandBuilder;
 
@@ -45,11 +45,10 @@ export class SetupRolesCommand implements Command {
     if (seccion === 'partidas') {
       const mapping = this.configRepository.getPartidasRoleMapping();
       
-      // Validamos que existan roles configurados en la infraestructura
       if (!mapping || Object.keys(mapping).length === 0) {
         await interaction.reply({ 
           content: '❌ Error: No hay roles configurados para la sección de partidas en el repositorio de configuración.', 
-          ephemeral: true 
+          flags: MessageFlags.Ephemeral 
         });
         return;
       }
@@ -97,7 +96,7 @@ export class SetupRolesCommand implements Command {
       if (!mapping || Object.keys(mapping).length === 0) {
         await interaction.reply({ 
           content: '❌ Error: No hay roles configurados para la sección de partidas en el repositorio de configuración.', 
-          ephemeral: true 
+          flags: MessageFlags.Ephemeral 
         });
         return;
       }
