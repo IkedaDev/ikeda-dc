@@ -35,6 +35,7 @@ import { ExpressServer } from './infrastructure/http/server';
 import { PingCommand } from './infrastructure/discord/commands/ping-command';
 import { TestWelcomeCommand } from './infrastructure/discord/commands/test-welcome.command';
 import { SetupRolesCommand } from './infrastructure/discord/commands/setup-roles.command';
+import { RedesCommand } from './infrastructure/discord/commands/redes-command';
 import { Command } from './infrastructure/discord/interfaces/command';
 
 // Events
@@ -69,6 +70,7 @@ export interface ICradle {
   pingCommand: PingCommand;
   testWelcomeCommand: TestWelcomeCommand;
   setupRolesCommand: SetupRolesCommand;
+  redesCommand: RedesCommand;
 
   // Events
   guildMemberAddEvent: GuildMemberAddEvent;
@@ -118,6 +120,7 @@ container.register({
   pingCommand: asClass(PingCommand).singleton(),
   testWelcomeCommand: asClass(TestWelcomeCommand).singleton(),
   setupRolesCommand: asClass(SetupRolesCommand).singleton(),
+  redesCommand: asClass(RedesCommand).singleton(),
 
   // Eventos
   guildMemberAddEvent: asClass(GuildMemberAddEvent).singleton(),
@@ -140,6 +143,7 @@ export function getRegisteredCommands(): Map<string, Command> {
     'pingCommand',
     'testWelcomeCommand',
     'setupRolesCommand',
+    'redesCommand',
   ];
 
   for (const key of commandKeys) {

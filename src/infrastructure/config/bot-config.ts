@@ -1,4 +1,4 @@
-import { WelcomeTemplateDto, WebhookAppConfig } from '../../domain/ports/config-repository.interface';
+import { WelcomeTemplateDto, WebhookAppConfig, SocialLinks } from '../../domain/ports/config-repository.interface';
 
 export interface BotConfig {
   discordToken: string;
@@ -11,12 +11,20 @@ export interface BotConfig {
   welcomeTemplates: WelcomeTemplateDto[];
   developerUserIds: string[];
   webhooks: WebhookAppConfig[];
+  socialLinks: SocialLinks;
 }
 
 export const botConfig: BotConfig = {
   discordToken: process.env.DISCORD_TOKEN || '',
   clientId: process.env.CLIENT_ID || '',
   guildId: process.env.GUILD_ID || '',
+  socialLinks: {
+    whatsapp: 'https://chat.whatsapp.com/DjhDvzEgiAMHP6CFxm6PAK?mode=gi_t',
+    facebook: '',
+    tiktok: '',
+    instagram: 'https://www.instagram.com/gamezone.league/',
+    web: '',
+  },
   welcomeChannelId: '1279220559787458694',
   defaultRoleIds: ['1524839430454640900'],
   partidasRoleMapping: {

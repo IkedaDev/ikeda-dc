@@ -12,6 +12,14 @@ export interface WebhookAppConfig {
   secret?: string;
 }
 
+export interface SocialLinks {
+  whatsapp?: string;
+  facebook?: string;
+  tiktok?: string;
+  instagram?: string;
+  web?: string;
+}
+
 export interface IConfigRepository {
   getWelcomeChannelId(): string;
   getDefaultRoleIds(): string[];
@@ -23,4 +31,5 @@ export interface IConfigRepository {
   getGuildId(): string;
   getDeveloperUserIds(): string[];
   getWebhookConfig(appId: string): WebhookAppConfig | undefined;
+  getSocialLinks(): SocialLinks;
 }
