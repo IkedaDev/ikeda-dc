@@ -142,7 +142,6 @@ export class PerfilCommand implements Command {
       }
 
       const embedsToSend = [profileEmbed];
-
       // 6. Si está en partida activa, construir Embed de la partida activa
       if (liveGameData) {
         const blueTeam = liveGameData.participants.filter(p => p.teamId === 100);
@@ -151,7 +150,8 @@ export class PerfilCommand implements Command {
         const formatTeamList = (team: typeof blueTeam) => {
           return team.map(p => {
             const rankStr = p.rankTier !== 'UNRANKED' 
-              ? `[${p.rankTier.substring(0, 3)} ${p.rankDivision}]`
+              // ? `[${p.rankTier.substring(0, 3)} ${p.rankDivision}]`
+              ? `[${p.rankTier} ${p.rankDivision}]`
               : '[Unranked]';
             // Formatear: Campeón - Nombre#Tag (Rango)
             const tagStr = p.tagLine ? `#${p.tagLine}` : '';
