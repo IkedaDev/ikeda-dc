@@ -33,4 +33,5 @@ export interface IConfigRepository {
   getWebhookConfig(appId: string): WebhookAppConfig | undefined;
   getSocialLinks(): SocialLinks;
   getPartidasExtraRoleId(): string;
+  getRiotApiKey(): string;
 }

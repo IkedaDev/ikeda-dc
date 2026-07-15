@@ -4,6 +4,7 @@ export interface BotConfig {
   discordToken: string;
   clientId: string;
   guildId: string;
+  riotApiKey: string;
   welcomeChannelId: string;
   defaultRoleIds: string[];
   partidasRoleMapping: Record<string, string>;
@@ -19,6 +20,7 @@ export const botConfig: BotConfig = {
   discordToken: process.env.DISCORD_TOKEN || '',
   clientId: process.env.CLIENT_ID || '',
   guildId: process.env.GUILD_ID || '',
+  riotApiKey: process.env.RIOT_API_KEY || '',
   socialLinks: {
     whatsapp: 'https://chat.whatsapp.com/DjhDvzEgiAMHP6CFxm6PAK?mode=gi_t',
     facebook: '',

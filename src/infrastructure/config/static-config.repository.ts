@@ -49,4 +49,8 @@ export class StaticConfigRepository implements IConfigRepository {
   getSocialLinks(): SocialLinks {
     return botConfig.socialLinks;
   }
+
+  getRiotApiKey(): string {
+    return botConfig.riotApiKey;
+  }
 }

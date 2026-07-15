@@ -36,7 +36,14 @@ import { PingCommand } from './infrastructure/discord/commands/ping-command';
 import { TestWelcomeCommand } from './infrastructure/discord/commands/test-welcome.command';
 import { SetupRolesCommand } from './infrastructure/discord/commands/setup-roles.command';
 import { RedesCommand } from './infrastructure/discord/commands/redes-command';
+import { PerfilCommand } from './infrastructure/discord/commands/perfil.command';
 import { Command } from './infrastructure/discord/interfaces/command';
+
+// Riot Games Integration
+import { IRiotService } from './domain/ports/riot-service.interface';
+import { RiotService } from './infrastructure/riot/riot.service';
+import { GetSummonerProfileUseCase } from './application/use-cases/get-summoner-profile.use-case';
+import { GetLiveGameUseCase } from './application/use-cases/get-live-game.use-case';
 
 // Events
 import { GuildMemberAddEvent } from './infrastructure/discord/events/guild-member-add.event';
@@ -72,6 +79,12 @@ export interface ICradle {
   testWelcomeCommand: TestWelcomeCommand;
   setupRolesCommand: SetupRolesCommand;
   redesCommand: RedesCommand;
+  perfilCommand: PerfilCommand;
+
+  // Riot Integration & Use Cases
+  riotService: IRiotService;
+  getSummonerProfile: GetSummonerProfileUseCase;
+  getLiveGame: GetLiveGameUseCase;
 
   // Events
   guildMemberAddEvent: GuildMemberAddEvent;
@@ -123,6 +136,12 @@ container.register({
   testWelcomeCommand: asClass(TestWelcomeCommand).singleton(),
   setupRolesCommand: asClass(SetupRolesCommand).singleton(),
   redesCommand: asClass(RedesCommand).singleton(),
+  perfilCommand: asClass(PerfilCommand).singleton(),
+
+  // Riot Integration & Use Cases
+  riotService: asClass(RiotService).singleton(),
+  getSummonerProfile: asClass(GetSummonerProfileUseCase).singleton(),
+  getLiveGame: asClass(GetLiveGameUseCase).singleton(),
 
   // Eventos
   guildMemberAddEvent: asClass(GuildMemberAddEvent).singleton(),
@@ -147,6 +166,7 @@ export function getRegisteredCommands(): Map<string, Command> {
     'testWelcomeCommand',
     'setupRolesCommand',
     'redesCommand',
+    'perfilCommand',
   ];
 
   for (const key of commandKeys) {
