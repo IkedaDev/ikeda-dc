@@ -55,6 +55,15 @@ export class PerfilCommand implements Command {
    * Ejecuta la lógica del comando /perfil de Discord.
    */
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+
+    if ( !['1527039732721127574','1525595909994315957'].includes(interaction.channelId) ) {
+      await interaction.reply({
+        content: '❌ Este comando solo se puede usar en el canal <#1527039732721127574>.',
+        flags: [MessageFlags.Ephemeral]
+      });
+      return;
+    }
+
     const riotId = interaction.options.getString('riot_id', true);
     const tagline = interaction.options.getString('tagline', true);
     const region = interaction.options.getString('region') || 'la2';
